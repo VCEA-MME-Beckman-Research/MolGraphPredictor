@@ -59,8 +59,11 @@ def gen_smiles2graph(sml):
     # Create the node features. Each atom is represented by a one-hot encoded vector
     # of its atomic number.
     for i in m.GetAtoms():
-        nodes[i.GetIdx(), i.GetAtomicNum() -1] = 1 # We use atomic number - 1 as index
-
+        atomic_num = i.GetAtomicNum() - 1
+        if 0 <= atomic_num < N_FEATURES:
+            nodes[i.GetIdx(), atomic_num] = 1 # We use atomic number - 1 as index
+        else:
+            raise ValueError(f"Atomic number {i.GetAtomicNum()} is out of range for the defined features.")
     # Initialize an adjacency matrix to represent the bonds.
     adj = np.zeros((N, N))
     # Populate the adjacency matrix based on the bonds in the molecule.
@@ -73,7 +76,7 @@ def gen_smiles2graph(sml):
             # but this is where you would use it.
             pass
         else:
-            raise Warning("Ignoring bond order" + str(order))
+            warnings.warn("Ignoring bond order" + str(order))
         # Set the adjacency matrix entries to 1 to indicate a bond.
         # The matrix is symmetric because bonds are bidirectional.
         adj[u, v] = 1
@@ -216,9 +219,12 @@ def main():
     # Split the data into training, validation, and test sets.
     # The dataset is shuffled before splitting.
     data = data.shuffle(1000)
-    test_data = data.take(1928)
-    val_data = data.skip(1928).take(1928)
-    train_data = data.skip(3856)
+    total_samples = sum(1 for _ in data)
+    test_size = int(0.2 * total_samples)
+    val_size = int(0.2 * total_samples)
+    test_data = data.take(test_size)
+    val_data = data.skip(test_size).take(val_size)
+    train_data = data.skip(test_size + val_size)
 
     # --- Model Training ---
     model = build_model()
