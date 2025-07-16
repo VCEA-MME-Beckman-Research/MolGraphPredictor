@@ -1,0 +1,5 @@
+tensorflow
+rdkit
+networkx
+matplotlib
+sklearn
