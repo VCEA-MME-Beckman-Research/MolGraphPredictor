@@ -1,4 +1,5 @@
 tensorflow
+tensorflow_gnn
 rdkit
 networkx
 matplotlib
