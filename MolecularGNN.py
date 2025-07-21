@@ -13,7 +13,9 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import normalize
+import argparse
 import os
+import warnings
 
 # --- Configuration ---
 # The number of features for each atom.
@@ -21,8 +23,14 @@ import os
 # and we also have C, N, O, F, we need a vector of size 9 to represent them.
 # H=1, He=2, Li=3, Be=4, B=5, C=6, N=7, O=8, F=9
 N_FEATURES = 9
-DATA_FILE = 'GCNN-data-2.pickle'
-MODEL_SAVE_PATH = 'model/molecular_gnn.h5'
+
+# --- Paths ---
+# Get the directory of the current script to build robust paths
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+DATA_FILE = os.path.join(SCRIPT_DIR, 'data', 'GCNN Data 2.pickle')
+MODEL_SAVE_PATH = os.path.join(SCRIPT_DIR, 'models', 'molecular_gnn.h5')
+GRAPHS_DIR = os.path.join(SCRIPT_DIR, 'graphs')
+
 
 # --- Data Loading and Preprocessing ---
 
@@ -188,7 +196,7 @@ def data_generator(raw_data, first_moment_list):
 
 # --- Main Execution ---
 
-def main():
+def main(epochs):
     """Main function to run the GNN model."""
     # Load the raw data from the pickle file.
     # This file contains SMILES strings and their corresponding molecular properties.
@@ -231,15 +239,15 @@ def main():
     model.compile("adam", loss="mean_squared_error")
 
     # Train the model.
-    result = model.fit(train_data.batch(1), validation_data=val_data.batch(1), epochs=10)
+    result = model.fit(train_data.batch(1), validation_data=val_data.batch(1), epochs=epochs)
 
     # --- Save the Model ---
-    if not os.path.exists('model'):
-        os.makedirs('model')
+    os.makedirs(os.path.dirname(MODEL_SAVE_PATH), exist_ok=True)
     model.save(MODEL_SAVE_PATH)
     print(f"Model saved to {MODEL_SAVE_PATH}")
 
     # --- Evaluation and Plotting ---
+    os.makedirs(GRAPHS_DIR, exist_ok=True)
     # Plot the training and validation loss.
     plt.plot(result.history["loss"], label="training")
     plt.plot(result.history["val_loss"], label="validation")
@@ -247,7 +255,8 @@ def main():
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.title("Training and Validation Loss")
-    plt.show()
+    plt.savefig(os.path.join(GRAPHS_DIR, 'loss_plot.png'))
+    plt.close()
 
     # Evaluate the model on the test data.
     yhat = model.predict(test_data.batch(1), verbose=0)[:, 0]
@@ -272,7 +281,11 @@ def main():
         max(test_y) - 0.3,
         f"loss = {np.sqrt(np.mean((np.array(test_y) - np.array(yhat))**2)):.3f}",
     )
-    plt.show()
+    plt.savefig(os.path.join(GRAPHS_DIR, 'predicted_vs_true_plot.png'))
+    plt.close()
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description='Molecular GNN')
+    parser.add_argument('--epochs', type=int, default=10, help='Number of epochs to train for')
+    args = parser.parse_args()
+    main(args.epochs)
